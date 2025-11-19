@@ -1,0 +1,334 @@
+---
+title: "Visualize Generated data"
+author: "Itesiwajuayo Babalola"
+date: "2025-11-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Generate data function
+```{r function}
+### -------------------------------
+### Function: generate_mrem_data()
+### -------------------------------
+# Generates one simulated meta-analysis dataset under a Mixture Random Effects Model (MREM)
+
+generate_mrem_data <- function(K, pi_g, mu_g, tau2_g, s2_min = 0.5, s2_max = 1) {
+  
+  # ---- Check Inputs ----
+  G <- length(pi_g)
+  if (abs(sum(pi_g) - 1) > 1e-6) stop("Mixing proportions pi_g must sum to 1.")
+  if (length(mu_g) != G | length(tau2_g) != G) stop("Lengths of pi_g, mu_g, and tau2_g must match.")
+  
+  # ---- Step 1: Generate component membership z_i ----
+  z_i <- sample(1:G, size = K, replace = TRUE, prob = pi_g)
+  
+  # ---- Step 2: Generate true effect sizes δ*_i ----
+  delta_i <- sapply(z_i, function(g) rnorm(1, mean = mu_g[g], sd = sqrt(tau2_g[g])))
+  
+  # ---- Step 3: Generate within-study variances s_i² ----
+  s2_i <- runif(K, min = s2_min, max = s2_max)
+  
+  # ---- Step 4: Generate observed effect sizes Y_i ----
+  Y_i <- rnorm(K, mean = delta_i, sd = sqrt(s2_i))
+  
+  # ---- Step 5: Return as data frame ----
+  data.frame(
+    study = 1:K,
+    component = z_i,
+    delta_true = delta_i,
+    s2 = s2_i,
+    Y = Y_i
+  )
+}
+```
+
+## Scenario Study Effects Plots at run_count = {100, 250, 450}
+
+
+### Scenario 1
+
+```{r s1-Y plot}
+set.seed(315)
+
+# Scenario 4: No mixture
+pi_g <- c(1)
+mu_g <- c(0.5)
+tau2_g <- c(0.8^2)
+
+K= 1500
+
+run_count = c(100, 250, 450)
+
+for(it in 1: 500){
+  dat1 <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+  if(it == run_count[1]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[2]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[3]){
+
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  
+}
+
+
+
+```
+
+### Scenario 2
+
+```{r s2-Y plot}
+set.seed(1855)
+
+# Scenario: 2-component mixture - unequal heterogeneity
+pi_g <- c(0.56, 0.44)
+mu_g <- c(-0.5, 1)
+tau2_g <- c(0.6^2, 0.4^2)
+
+K= 1500
+
+run_count = c(100, 250, 450)
+
+for(it in 1: 500){
+  dat1 <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+  if(it == run_count[1]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[2]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[3]){
+
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  
+}
+
+
+```
+
+### Scenario 3
+
+```{r s3-Y plot}
+set.seed(315)
+ 
+# Scenario: 3-component mixture
+mu_g <- c(-2.5, -1, 2.5)
+tau2_g <- c(0.7^2, 0.7^2, 0.6^2)
+pi_g <- c(0.2, 0.4, 0.4)
+
+K= 1500
+
+run_count = c(100, 250, 450)
+
+for(it in 1: 500){
+  dat1 <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+  if(it == run_count[1]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[2]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[3]){
+
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  
+}
+
+```
+
+### Scenario 4
+
+```{r s4-Y plot}
+set.seed(315)
+
+# Scenario: 2-component mixture - high heterogeneity
+pi_g <- c(0.33, 0.67)
+mu_g <- c(-1, 1)
+tau2_g <- c(1.5^2, 1.2^2)
+
+K= 1500
+
+run_count = c(100, 250, 450)
+
+for(it in 1: 500){
+  dat1 <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+  if(it == run_count[1]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[2]){
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  if(it == run_count[3]){
+
+    mu <- mean(dat1$Y)
+    sigma <- sd(dat1$Y)
+
+    hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
+         
+         ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
+    
+    
+    curve(dnorm(x, mean = mu, sd = sigma),
+      add = TRUE,          # Add to the existing plot
+      col = "red",         # Color of the curve
+      lwd = 2,             # Line width
+      lty = 2)             # Line type (e.g., dashed)
+  }
+  
+  
+}
+
+```
+

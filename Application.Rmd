@@ -1,0 +1,527 @@
+---
+title: "Application code"
+author: "Tes"
+date: "2025-11-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages}
+library(readxl)
+library(metafor)
+library(ggforestplot)
+library(ggplot2)
+library(metaplus)
+library(dplyr)
+
+```
+# NRT dataset
+
+```{r MREM functions}
+### -------------------------------
+### Function: initialize_params()
+### -------------------------------
+# Generates initial values for each parameter--- to be used in EM algorithm
+
+# Y: observed effect sizes
+# s2: vector of within-study variances
+# G: number of components (clusters)
+# epsilon: small positive constant
+
+initialize_params <- function(Y, s2, G, epsilon = 1e-3) {
+  # Step 1: Run k-means clustering
+  km <- kmeans(Y, centers = G, nstart = 20)
+  
+  # Step 2: Component means (ensure numeric vector)
+  mu_init <- as.numeric(km$centers)
+  
+  # Step 3: Cluster assignments
+  z_init <- km$cluster
+  
+  # Step 4: Mixing proportions (ensure numeric vector)
+  pi_init <- as.numeric(table(z_init) / length(Y))
+  
+  # Step 5: Between-study variances (ensure numeric vector)
+  tau2_init <- numeric(G)
+  for (g in 1:G) {
+    Y_g <- Y[z_init == g]
+    s2_g <- s2[z_init == g]
+    var_Yg <- var(Y_g)
+    tau2_init[g] <- max(var_Yg - mean(s2_g), epsilon)
+  }
+  
+  # Step 6: Return as clean numeric list
+  list(
+    mu_init = mu_init,
+    tau2_init = tau2_init,
+    pi_init = pi_init
+  )
+}
+
+
+### -------------------------------
+### Function: update_tau2()
+### -------------------------------
+# Function to update between study variance parameter estimate--- to be used in EM algorithm
+
+update_tau2 <- function(Y, s2, gam, mu, tau2_init) {
+  neg_loglik_tau2_g <- function(tau2_g, Y, s2, gam_g, mu_g) {
+    if (tau2_g <= 0) return(1e20)
+    v <- tau2_g + s2
+    -sum(gam_g * (-0.5 * log(v) - 0.5 * (Y - mu_g)^2 / v))
+  }
+  
+    sapply(seq_along(mu), function(g) {
+    optim(
+      par = tau2_init[g],
+      fn = neg_loglik_tau2_g,
+      method = "L-BFGS-B",
+      lower = 1e-8,
+      Y = Y,
+      s2 = s2,
+      gam_g = gam[, g],
+      mu_g = mu[g]
+    )$par
+  })
+}
+
+### -------------------------------
+### Function: run_em_algorithm()
+### -------------------------------
+# Function to perform EM algorithm
+
+run_em_algorithm <- function(Y, s2, mu_init, pi_init, tau2_init, tol = 1e-4, rl = 500) {
+  y <- as.vector(Y)
+  s2_i <- as.vector(s2)
+  mu <- mu_init
+  pi <- pi_init
+  tau2 <- tau2_init
+  g <- length(mu)
+  
+  loglik_old <- -Inf
+  
+  for (iter in 1:rl) {
+    # E-step
+    den_gam <- sapply(1:g, function(j) {
+      pi[j] * dnorm(y, mu[j], sqrt(tau2[j] + s2_i))
+    })
+    gam <- den_gam / rowSums(den_gam)
+    
+    # M-step
+    ng <- colSums(gam)
+    npi <- ng / sum(ng)
+    
+    nmu <- sapply(1:g, function(j) {
+      sum(gam[, j] * y / (tau2[j] + s2_i)) /
+        sum(gam[, j] / (tau2[j] + s2_i))
+    })
+    
+    ntau2 <- update_tau2(y, s2_i, gam, nmu, tau2)
+    
+    # Enforce ordering by component mean
+    order_idx <- order(nmu)
+    nmu <- nmu[order_idx]
+    ntau2 <- ntau2[order_idx]
+    npi <- npi[order_idx]
+    
+    # Compute log-likelihood
+    loglik <- sum(log(rowSums(sapply(1:g, function(j) {
+      npi[j] * dnorm(y, mean = nmu[j], sd = sqrt(ntau2[j] + s2_i))
+    }))))
+    
+    # Convergence check
+    if (abs(loglik - loglik_old) < tol && iter > 10) {
+      return(list(
+        mu = nmu,
+        tau2 = ntau2,
+        pi = npi,
+        loglik = loglik,
+        iter = iter,
+        converged = TRUE
+      ))
+    }
+    
+    mu <- nmu
+    tau2 <- ntau2
+    pi <- npi
+    loglik_old <- loglik
+  }
+  
+  # Return final results even if not converged
+  list(
+    mu = mu,
+    tau2 = tau2,
+    pi = pi,
+    loglik = loglik,
+    iter = rl,
+    converged = FALSE
+  )
+}
+
+```
+
+## Transform data
+* Compare REM vs MREM vs t-distribution REM
+
+```{r NRT original}
+nrt <- read_xlsx("NRT main.xlsx")
+
+nrt$NRT_NoEvent <- nrt$NRT_N - nrt$NRT_Event
+nrt$Placebo_NoEvent <- nrt$Placebo_N - nrt$Placebo_Event
+
+nrt <- subset(nrt, select= -c(NRT_N, Placebo_N))
+
+# compute odds ratio
+nrt$OR <- (nrt$NRT_Event * nrt$Placebo_NoEvent)/(nrt$Placebo_Event * nrt$NRT_NoEvent)
+
+# compute log odds_ratio
+nrt$lOR <- log(nrt$OR)
+
+# compute log odds ratio approximate variance
+nrt$vlOR <- (1/nrt$NRT_Event)+(1/nrt$Placebo_NoEvent)+(1/nrt$Placebo_Event)+(1/nrt$NRT_NoEvent)
+
+nrt$se.lOR <- sqrt(nrt$vlOR)
+
+nrt_mdat <- nrt[, c("Gender", "Follow_up", "Source", "lOR", "vlOR", "se.lOR")]
+
+hist(nrt_mdat$lOR, main=" ", xlab = "log Odds ratios")
+
+```
+
+
+### Desmornian Laird Method on NRT Data
+```{r DL on Original}
+nrt.res_DL <- rma(lOR, vlOR, data = nrt_mdat, method="DL")
+
+summary(nrt.res_DL)
+```
+
+### EM MREM on NRT data
+```{r MREM EM}
+
+### -----------------------------------
+### Model selection for MREM via EM
+### -----------------------------------
+
+# Data
+Y <- nrt_mdat$lOR
+s2 <- nrt_mdat$vlOR
+K <- length(Y)
+
+# Container to store results
+em_results <- list()
+bic_values <- numeric()
+aic_values <- numeric()
+
+# Loop over G = 1, 2, 3, 4
+for (G in 1:4) {
+  cat("\nFitting model with G =", G, "\n")
+  
+  # Initialize
+  init_res <- initialize_params(Y, s2, G = G)
+  
+  # Run EM algorithm
+  em_res <- run_em_algorithm(
+    Y = Y,
+    s2 = s2,
+    mu_init = init_res$mu_init,
+    pi_init = init_res$pi_init,
+    tau2_init = init_res$tau2_init,
+    rl = 2000
+  )
+  
+  # Number of parameters:
+  # G means + G variances + (G - 1) mixture weights
+  nparam <- (2 * G) + (G - 1)
+  
+  # BIC computation
+  bic_val <- -2 * em_res$loglik + nparam * log(K)
+  aic_val <- 2*nparam - 2*em_res$loglik
+  
+  # Store results
+  em_results[[G]] <- em_res
+  bic_values[G] <- bic_val
+  aic_values[G] <- aic_val
+}
+
+# Create BIC summary
+bic_table <- data.frame(
+  G = 1:4,
+  BIC = bic_values
+)
+
+# Create AIC summary
+aic_table <- data.frame(
+  G = 1:4,
+  AIC = aic_values
+)
+
+# Plot the BIC
+ggplot(bic_table, aes(x = G, y = BIC)) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  theme_minimal() +
+  labs(
+    x = "Number of Components (G)",
+    y = "BIC"
+  )
+
+# Plot the AIC
+ggplot(aic_table, aes(x = G, y = AIC)) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  theme_minimal() +
+  labs(
+    x = "Number of Components (G)",
+    y = "AIC"
+  )
+
+
+
+# Select best model
+best_G <- bic_table$G[which.min(bic_table$BIC)]
+best_model <- em_results[[best_G]]
+
+cat("\nBest model selected: G =", best_G, "\n")
+print(bic_table)
+
+# Plot the estimated random effects density only
+x_seq <- seq(min(Y) - 1, max(Y) + 1, length.out = 500)
+mix_density <- rowSums(sapply(1:best_G, function(g) {
+  best_model$pi[g] * dnorm(x_seq,
+                           mean = best_model$mu[g],
+                           sd = sqrt(best_model$tau2[g]))
+}))
+plot_data <- data.frame(x_seq, mix_density)
+
+ggplot(plot_data, aes(x = x_seq, y = mix_density)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  labs(
+    x = "log Odds ratios",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+best_model
+```
+
+## Assess Effect of Ignoring the presence of a Mixture
+
+```{r NRT augmented}
+
+###################################################
+## Making mixture a bit more pronounced in data.
+## For demonstration purposes.
+###################################################
+
+# To allow better demonstration of the MREM via EM 
+# Make a copy so we don't change the real data
+nrt_sim <- nrt_mdat
+
+# Subtract 0.7 from logOR for exactly the rows we want:
+# - women in mid or long term
+# - men in long term
+nrt_sim$lOR <- ifelse(
+  (nrt_sim$Gender == "Female" & nrt_sim$Follow_up %in% c("mid-term", "long-term")) |
+  (nrt_sim$Gender == "Male"   & nrt_sim$Follow_up == "long-term"),
+  nrt_sim$lOR - 1.2,      # pull these down
+  nrt_sim$lOR              # leave all others unchanged
+)
+
+hist(nrt_sim$lOR, breaks = 20,  main=" ", xlab = "log Odds ratios")
+
+```
+
+### Desmornian Laird Method on Augmented NRT Data
+```{r DL on sim}
+nrt.res_DL <- rma(lOR, vlOR, data = nrt_sim, method="DL")
+
+summary(nrt.res_DL)
+
+x_seq <- seq(min(nrt_sim$lOR) - 1, max(nrt_sim$lOR) + 1, length.out = 500)
+DLest_density <- dnorm(x_seq, nrt.res_DL$beta[1], sqrt(nrt.res_DL$tau2))
+
+# Create dataframe for plotting
+df_DL <- data.frame(
+  x = x_seq,
+  density = DLest_density
+)
+
+# Plot with ggplot
+library(ggplot2)
+
+ggplot(df_DL, aes(x = x, y = density)) +
+  geom_line(linewidth = 1.2) +
+  theme_minimal() +
+  labs(
+    x = "log Odds Ratios",
+    y = "Density"
+  )
+
+
+```
+
+### MREM via EM on Augmented NRT Data
+```{r MREM EM o sim}
+
+### -----------------------------------
+### Model selection for MREM via EM
+### -----------------------------------
+
+# Data
+Y <- nrt_sim$lOR
+s2 <- nrt_sim$vlOR
+K <- length(Y)
+
+# Container to store results
+em_results <- list()
+bic_values <- numeric()
+aic_values <- numeric()
+
+# Loop over G = 1, 2, 3, 4
+for (G in 1:4) {
+  cat("\nFitting model with G =", G, "\n")
+  
+  # Initialize
+  init_res <- initialize_params(Y, s2, G = G)
+  
+  # Run EM algorithm
+  em_res <- run_em_algorithm(
+    Y = Y,
+    s2 = s2,
+    mu_init = init_res$mu_init,
+    pi_init = init_res$pi_init,
+    tau2_init = init_res$tau2_init,
+    rl = 2000
+  )
+  
+  # Number of parameters:
+  # G means + G variances + (G - 1) mixture weights
+  nparam <- (2 * G) + (G - 1)
+  
+  # BIC computation
+  bic_val <- -2 * em_res$loglik + nparam * log(K)
+  aic_val <- 2*nparam - 2*em_res$loglik
+  
+  # Store results
+  em_results[[G]] <- em_res
+  bic_values[G] <- bic_val
+  aic_values[G] <- aic_val
+}
+
+# Create BIC summary
+bic_table <- data.frame(
+  G = 1:4,
+  BIC = bic_values
+)
+
+# Create AIC summary
+aic_table <- data.frame(
+  G = 1:4,
+  AIC = aic_values
+)
+
+# Plot the BIC
+ggplot(bic_table, aes(x = G, y = BIC)) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  theme_minimal() +
+  labs(
+    x = "Number of Components (G)",
+    y = "BIC"
+  )
+
+# Plot the AIC
+ggplot(aic_table, aes(x = G, y = AIC)) +
+  geom_point(size = 3) +
+  geom_line(linewidth = 1) +
+  theme_minimal() +
+  labs(
+    x = "Number of Components (G)",
+    y = "AIC"
+  )
+
+
+
+# Select best model
+best_G <- bic_table$G[which.min(bic_table$BIC)]
+best_model <- em_results[[best_G]]
+
+cat("\nBest model selected: G =", best_G, "\n")
+print(bic_table)
+
+# Plot the estimated random effects density only
+x_seq <- seq(min(Y) - 1, max(Y) + 1, length.out = 500)
+mix_density <- rowSums(sapply(1:best_G, function(g) {
+  best_model$pi[g] * dnorm(x_seq,
+                           mean = best_model$mu[g],
+                           sd = sqrt(best_model$tau2[g]))
+}))
+plot_data <- data.frame(x_seq, mix_density)
+
+ggplot(plot_data, aes(x = x_seq, y = mix_density)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  labs(
+    x = "log Odds ratios",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+best_model
+```
+
+```{r Best_model clusters}
+
+# Compute final posterior probabilities (responsibilities)
+gamma <- matrix(0, nrow = K, ncol = best_G)   # K = number of studies, G = number of groups
+
+for(g in 1:best_G){
+  gamma[,g] <- best_model$pi[g] * dnorm(Y, mean = best_model$mu[g], sd = sqrt(best_model$tau2[g] + s2))
+}
+gamma <- gamma / rowSums(gamma)   # make sure they sum to 1
+
+# Hard cluster assignment: which group does each study belong to?
+cluster <- apply(gamma, 1, which.max)   # 1 or 2 (or 3, etc.)
+
+# All together
+nrt_sim$cluster_MREM <- cluster
+nrt_sim$prob_group1  <- gamma[,1]     # probability of being in group 1
+nrt_sim$prob_group2  <- gamma[,2]     # probability of being in group 2
+
+# Visualizing the cluster result
+
+# Create combined group label
+nrt_sim$Group <- paste(nrt_sim$Gender, nrt_sim$Follow_up, sep = " - ")
+
+# Count observations by group and assigned cluster
+cluster_counts <- nrt_sim %>%
+  group_by(Group, cluster_MREM) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  mutate(cluster_MREM = as.factor(cluster_MREM))
+
+# Plot as stacked proportion bar chart
+ggplot(cluster_counts, aes(x = Group, y = Count, fill = cluster_MREM)) +
+  geom_bar(stat = "identity", position = "fill") +
+  labs(
+    x = "Subgroup",
+    y = "Proportion",
+    fill = "Cluster"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+
+
+
+```
+
+
+
+
+

@@ -1,0 +1,217 @@
+---
+title: "REM on Scenarios"
+author: "Itesiwajuayo Babalola"
+date: "2025-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Packages}
+library(metafor)
+
+```
+
+
+## Scenario 4 
+
+```{r }
+### -------------------------------
+### Function: generate_mrem_data()
+### -------------------------------
+# Generates one simulated meta-analysis dataset under a Mixture Random Effects Model (MREM)
+
+generate_mrem_data <- function(K, pi_g, mu_g, tau2_g, s2_min = 0.5, s2_max = 1) {
+  
+  # ---- Check Inputs ----
+  G <- length(pi_g)
+  if (abs(sum(pi_g) - 1) > 1e-6) stop("Mixing proportions pi_g must sum to 1.")
+  if (length(mu_g) != G | length(tau2_g) != G) stop("Lengths of pi_g, mu_g, and tau2_g must match.")
+  
+  # ---- Step 1: Generate component membership z_i ----
+  z_i <- sample(1:G, size = K, replace = TRUE, prob = pi_g)
+  
+  # ---- Step 2: Generate true effect sizes δ*_i ----
+  delta_i <- sapply(z_i, function(g) rnorm(1, mean = mu_g[g], sd = sqrt(tau2_g[g])))
+  
+  # ---- Step 3: Generate within-study variances s_i² ----
+  s2_i <- runif(K, min = s2_min, max = s2_max)
+  
+  # ---- Step 4: Generate observed effect sizes Y_i ----
+  Y_i <- rnorm(K, mean = delta_i, sd = sqrt(s2_i))
+  
+  # ---- Step 5: Return as data frame ----
+  data.frame(
+    study = 1:K,
+    component = z_i,
+    delta_true = delta_i,
+    s2 = s2_i,
+    Y = Y_i
+  )
+}
+
+
+
+```
+
+## Traditonal 
+
+```{r }
+
+set.seed(315)  # reproducibility
+
+# True parameters (Scenario 4: single component)
+pi_g <- c(1)
+mu_g <- c(0.5)
+tau2_g <- c(0.8^2)
+
+# Simulation settings
+K_values <- c(150, 500, 1000, 1500)
+n_reps <- 500
+
+# Helper function: Bias & RMSE
+Get_metrics <- function(estimates, true_value) {
+  bias <- mean(estimates - true_value)
+  rmse <- sqrt(mean((estimates - true_value)^2))
+  return(c(Bias = bias, RMSE = rmse))
+}
+
+# Storage for results
+summary_list <- list()
+
+for (K in K_values) {
+  cat("\nRunning REML simulations for K =", K, "\n")
+  
+  res_reml <- matrix(NA, nrow = n_reps, ncol = 2)
+  colnames(res_reml) <- c("mu", "tau2")
+  
+  for (r in 1:n_reps) {
+    mdat <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+    
+    fit_reml <- rma(yi = mdat$Y, vi = mdat$s2, method = "DL")
+    res_reml[r, "mu"]   <- fit_reml$beta[1]
+    res_reml[r, "tau2"] <- fit_reml$tau2
+    
+    if (r %% 50 == 0) cat("  Completed", r, "replications\n")
+  }
+  
+  # Compute Bias & RMSE
+  mu_metrics   <- Get_metrics(res_reml[, "mu"], mu_g)
+  tau2_metrics <- Get_metrics(res_reml[, "tau2"], tau2_g)
+  
+  summary_list[[as.character(K)]] <- data.frame(
+    K = K,
+    Parameter = c("mu", "tau2"),
+    Bias = c(mu_metrics["Bias"], tau2_metrics["Bias"]),
+    RMSE = c(mu_metrics["RMSE"], tau2_metrics["RMSE"])
+  )
+}
+
+# Combine results into one table
+summary_results <- do.call(rbind, summary_list)
+
+cat("\nSummary of Bias and RMSE for REML model across K values:\n")
+print(summary_results, row.names = FALSE)
+
+
+```
+
+# Exploring Effect of Assuming Single Normality
+
+# Scenario 1
+
+```{r REM_S1}
+set.seed(315)  # reproducibility
+
+# Scenario: 3-component mixture
+mu_g <- c(-2.5, -1, 2.5)
+tau2_g <- c(0.7^2, 0.7^2, 0.6^2)
+pi_g <- c(0.2, 0.4, 0.4)
+
+# Simulation settings
+K <- 150
+n_reps <- 500
+
+res_reml.s1 <- matrix(NA, nrow = n_reps, ncol = 2)
+  colnames(res_reml.s1) <- c("mu", "tau2")
+  
+  for (r in 1:n_reps) {
+    mdat <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+    
+    fit_reml <- rma(yi = mdat$Y, vi = mdat$s2, method = "DL")
+    res_reml.s1[r, "mu"]   <- fit_reml$beta[1]
+    res_reml.s1[r, "tau2"] <- fit_reml$tau2
+    
+    # if (r %% 50 == 0) cat("  Completed", r, "replications\n")
+  }
+  
+colMeans(res_reml.s1)
+  
+```
+
+
+# Scenario 2
+
+```{r REM_S2}
+set.seed(315)  # reproducibility
+
+# Scenario: 2-component mixture - Asymmetric heterogeneity
+pi_g <- c(0.56, 0.44)
+mu_g <- c(-0.5, 1)
+tau2_g <- c(0.6^2, 0.4^2)
+
+# Simulation settings
+K <- 150
+n_reps <- 500
+
+res_reml.s2 <- matrix(NA, nrow = n_reps, ncol = 2)
+  colnames(res_reml.s2) <- c("mu", "tau2")
+  
+  for (r in 1:n_reps) {
+    mdat <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+    
+    fit_reml <- rma(yi = mdat$Y, vi = mdat$s2, method = "DL")
+    res_reml.s2[r, "mu"]   <- fit_reml$beta[1]
+    res_reml.s2[r, "tau2"] <- fit_reml$tau2
+    
+    # if (r %% 50 == 0) cat("  Completed", r, "replications\n")
+  }
+  
+colMeans(res_reml.s2)
+
+```
+
+
+# Scenario 3
+
+```{r REM_S3}
+set.seed(315)  # reproducibility
+
+# Scenario: 2-component mixture - very high heterogeneity
+pi_g <- c(0.33, 0.67)
+mu_g <- c(-1, 1)
+tau2_g <- c(1.5^2, 1.2^2)
+
+# Simulation settings
+K <- 150
+n_reps <- 500
+
+res_reml.s3 <- matrix(NA, nrow = n_reps, ncol = 2)
+  colnames(res_reml.s3) <- c("mu", "tau2")
+  
+  for (r in 1:n_reps) {
+    mdat <- generate_mrem_data(K, pi_g, mu_g, tau2_g)
+    
+    fit_reml <- rma(yi = mdat$Y, vi = mdat$s2, method = "DL")
+    res_reml.s3[r, "mu"]   <- fit_reml$beta[1]
+    res_reml.s3[r, "tau2"] <- fit_reml$tau2
+    
+    # if (r %% 50 == 0) cat("  Completed", r, "replications\n")
+  }
+  
+colMeans(res_reml.s3)
+
+```
+
