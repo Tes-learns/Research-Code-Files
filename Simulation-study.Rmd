@@ -426,6 +426,8 @@ pi_g <- c(0.2, 0.4, 0.4)
 
 res_K150 <- run_em_simulations(K = 150, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
+
+# RMSE and Bias table
 summary_K150 <- compute_bias_mse(
  results = res_K150,
  mu_true = mu_g,
@@ -434,6 +436,55 @@ summary_K150 <- compute_bias_mse(
 )
 
 summary_K150
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(res_K150)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
+
 
 ```
 
@@ -447,14 +498,62 @@ set.seed(315)
 
 res_K500 <- run_em_simulations(K = 500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-# summary_K500 <- compute_bias_mse(
-#   results = res_K500,
-#   mu_true = mu_g,
-#   tau2_true = tau2_g,
-#   pi_true = pi_g
-# )
-# 
-# summary_K500
+summary_K500 <- compute_bias_mse(
+  results = res_K500,
+  mu_true = mu_g,
+  tau2_true = tau2_g,
+  pi_true = pi_g
+)
+
+summary_K500
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(res_K500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 ```
 
 ## Scenario 1: K= 1000
@@ -475,6 +574,54 @@ summary_K1000 <- compute_bias_mse(
 )
 
 summary_K1000
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(res_K1000)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 
 ```
 
@@ -504,6 +651,53 @@ plot_mixture_fit(
   scenario_name = "Scenario 1: 3-Component Mixture"
 )
 
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(res_K1500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 ```
 
 # Scenario 2
@@ -533,6 +727,54 @@ s2.summary_K150 <- compute_bias_mse(
 
 s2.summary_K150
 
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s2.res_K150)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 ```
 
 ## Scenario 2: K= 500
@@ -553,6 +795,54 @@ s2.summary_K500 <- compute_bias_mse(
 )
 
 s2.summary_K500
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s2.res_K500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 ```
 
 ## Scenario 2: K= 1000
@@ -573,6 +863,54 @@ s2.summary_K1000 <- compute_bias_mse(
 )
 
 s2.summary_K1000
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s2.res_K1000)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 
 ```
 
@@ -604,6 +942,54 @@ plot_mixture_fit(
   scenario_name = "Scenario 2: 2-Component, Mild Heterogeneity"
 )
 
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s2.res_K1500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
+
 
 ```
 
@@ -633,6 +1019,54 @@ s3.summary_K150 <- compute_bias_mse(
 
 s3.summary_K150
 
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s3.res_K150)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
+
 ```
 
 ## Scenario 3: K= 500
@@ -651,6 +1085,54 @@ s3.summary_K500 <- compute_bias_mse(
 )
 
 s3.summary_K500
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s3.res_K500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 ```
 
 ## Scenario 3: K= 1000
@@ -669,6 +1151,54 @@ s3.summary_K1000 <- compute_bias_mse(
 )
 
 s3.summary_K1000
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s3.res_K1000)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 
 ```
 
@@ -698,6 +1228,54 @@ plot_mixture_fit(
   scenario_name = "Scenario 3: 2-Component, High Heterogeneity"
 )
 
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s3.res_K1500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
+
 ```
 
 # Scenario 4
@@ -726,7 +1304,53 @@ s4.summary_K150 <- compute_bias_mse(
 
 s4.summary_K150
 
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s4.res_K150)
 
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged", "pi1")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 
 ```
 
@@ -746,6 +1370,54 @@ s4.summary_K500 <- compute_bias_mse(
 )
 
 s4.summary_K500
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s4.res_K500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged", "pi1")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 ```
 
 ## Scenario 4: K= 1000
@@ -764,6 +1436,54 @@ s4.summary_K1000 <- compute_bias_mse(
 )
 
 s4.summary_K1000
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s4.res_K1000)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged", "pi1")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 
 ```
 
@@ -792,6 +1512,54 @@ plot_mixture_fit(
   pi_true = c(1),
   scenario_name = "Scenario 4: Single Component (No Mixture)"
 )
+
+# Plot CIs and parametric distribution of parameters
+df <- as.data.frame(s4.res_K1500)
+
+
+# drop non-parameter columns (adjust if other bookkeeping cols exist)
+drop_cols <- c("K", "loglik", "iter", "converged", "pi1")
+param_cols <- setdiff(names(df), drop_cols)
+
+# make long format for plotting
+long_df <- reshape2::melt(df[, param_cols, drop = FALSE], 
+                          measure.vars = param_cols,
+                          variable.name = "parameter",
+                          value.name = "value")
+
+# ---- 2. Plot histograms: all parameters for Scenario1_K150 on one faceted plot ----
+# NOTE: facet labels (parameter names) are shown; no main title; axis labels only
+p <- ggplot(long_df, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "grey80") +
+  facet_wrap(~ parameter, ncol = 3, scales = "free") +
+  labs(x = "Parameter value", y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_blank())
+
+# print to screen
+print(p)
+
+# ---- 3. Compute empirical CIs (based on sorted values) ----
+ci_list <- lapply(param_cols, function(par) {
+  vec <- sort(df[[par]])               # sorted estimates
+  R   <- length(vec)                   # e.g., 500
+  
+  # empirical CI indices (non-interpolated)
+  lower_idx <- ceiling(0.025 * R)      # e.g. 13
+  upper_idx <- floor(0.975 * R)        # e.g. 487 or 488 depending on rounding
+  
+  data.frame(
+    parameter = par,
+    lower = vec[lower_idx],
+    upper = vec[upper_idx],
+    stringsAsFactors = FALSE
+  )
+})
+
+ci_table <- do.call(rbind, ci_list)
+
+# ---- 4. View the empirical CI table ----
+print(ci_table)
 
 ```
 
