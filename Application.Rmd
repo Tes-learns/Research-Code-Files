@@ -199,6 +199,31 @@ nrt.res_DL <- rma(lOR, vlOR, data = nrt_mdat, method="DL")
 summary(nrt.res_DL)
 ```
 
+
+```{r plot DL}
+
+x_seq <- seq(min(nrt_mdat$lOR) - 1, max(nrt_mdat$lOR) + 1, length.out = 500)
+DLest_density <- dnorm(x_seq, nrt.res_DL$beta[1], sqrt(nrt.res_DL$tau2))
+
+# Create dataframe for plotting
+df_DL <- data.frame(
+  x = x_seq,
+  density = DLest_density
+)
+
+# Plot with ggplot
+library(ggplot2)
+
+ggplot(df_DL, aes(x = x, y = density)) +
+  geom_line(linewidth = 1.2) +
+  theme_minimal() +
+  labs(
+    x = "log Odds Ratios",
+    y = "Density"
+  )
+
+```
+
 ### EM MREM on NRT data
 ```{r MREM EM}
 
@@ -287,6 +312,7 @@ best_model <- em_results[[best_G]]
 
 cat("\nBest model selected: G =", best_G, "\n")
 print(bic_table)
+print(aic_table)
 
 # Plot the estimated random effects density only
 x_seq <- seq(min(Y) - 1, max(Y) + 1, length.out = 500)
@@ -331,7 +357,7 @@ nrt_sim$lOR <- ifelse(
   nrt_sim$lOR              # leave all others unchanged
 )
 
-hist(nrt_sim$lOR, breaks = 20,  main=" ", xlab = "log Odds ratios")
+hist(nrt_sim$lOR, main=" ", xlab = "log Odds ratios")
 
 ```
 
@@ -452,6 +478,7 @@ best_model <- em_results[[best_G]]
 
 cat("\nBest model selected: G =", best_G, "\n")
 print(bic_table)
+print(aic_table)
 
 # Plot the estimated random effects density only
 x_seq <- seq(min(Y) - 1, max(Y) + 1, length.out = 500)

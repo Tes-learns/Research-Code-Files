@@ -278,11 +278,11 @@ run_em_simulations <- function(K, pi_g, mu_g, tau2_g,
 
 ```{r Function 6}
 ### -------------------------------
-### Function: compute_bias_mse()
+### Function: compute_error_metrics()
 ### -------------------------------
-# Calculates the bias and mean squared error (MSE) for each model parameter across converged simulations,
+# Calculates the bias, root mean squared error (RMSE) and relative RMSE for each model parameter across converged simulations,
 # comparing estimated parameters to their known true values.
-compute_bias_mse <- function(results, mu_true, tau2_true, pi_true) {
+compute_error_metrics <- function(results, mu_true, tau2_true, pi_true) {
   # Ensure only converged results are used
   res <- subset(results, converged == TRUE)
   
@@ -299,17 +299,19 @@ compute_bias_mse <- function(results, mu_true, tau2_true, pi_true) {
   # Parameters to assess
   params <- names(true_vals)
   
-  # Compute Bias and MSE for each parameter
+  # Compute Bias, RMSE, and Relative RMSE
   summary_df <- data.frame(
     Parameter = params,
     True = unlist(true_vals),
     Bias = sapply(params, function(p) mean(res[[p]] - true_vals[[p]], na.rm = TRUE)),
     RMSE  = sapply(params, function(p) sqrt(mean((res[[p]] - true_vals[[p]])^2, na.rm = TRUE)))
   )
+
+  # *** Add Relative RMSE ***
+  summary_df$Relative_RMSE <- summary_df$RMSE / abs(summary_df$True)
   
   return(summary_df)
 }
-
 
 ```
 
@@ -428,7 +430,7 @@ res_K150 <- run_em_simulations(K = 150, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_
 
 
 # RMSE and Bias table
-summary_K150 <- compute_bias_mse(
+summary_K150 <- compute_error_metrics(
  results = res_K150,
  mu_true = mu_g,
  tau2_true = tau2_g,
@@ -498,7 +500,7 @@ set.seed(315)
 
 res_K500 <- run_em_simulations(K = 500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-summary_K500 <- compute_bias_mse(
+summary_K500 <- compute_error_metrics(
   results = res_K500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -506,6 +508,7 @@ summary_K500 <- compute_bias_mse(
 )
 
 summary_K500
+
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(res_K500)
@@ -566,7 +569,7 @@ set.seed(315)
 
 res_K1000 <- run_em_simulations(K = 1000, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-summary_K1000 <- compute_bias_mse(
+summary_K1000 <- compute_error_metrics(
   results = res_K1000,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -574,6 +577,8 @@ summary_K1000 <- compute_bias_mse(
 )
 
 summary_K1000
+
+ 
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(res_K1000)
@@ -633,7 +638,7 @@ set.seed(315)
 
 res_K1500 <- run_em_simulations(K = 1500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-summary_K1500 <- compute_bias_mse(
+summary_K1500 <- compute_error_metrics(
   results = res_K1500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -641,6 +646,7 @@ summary_K1500 <- compute_bias_mse(
 )
 
 summary_K1500
+
 
 # Scenario 1
 plot_mixture_fit(
@@ -709,7 +715,7 @@ print(ci_table)
 ### Scenario 2
 ### -------------------------------
 
-set.seed(1855)
+set.seed(315)
 
 # Scenario: 2-component mixture - Asymmetric heterogeneity
 pi_g <- c(0.56, 0.44)
@@ -718,7 +724,7 @@ tau2_g <- c(0.6^2, 0.4^2)
 
 s2.res_K150 <- run_em_simulations(K = 150, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s2.summary_K150 <- compute_bias_mse(
+s2.summary_K150 <- compute_error_metrics(
   results = s2.res_K150,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -783,11 +789,11 @@ print(ci_table)
 
 ```{r Scenario 2 K500}
 
-set.seed(1855)
+set.seed(315)
 
 s2.res_K500 <- run_em_simulations(K = 500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s2.summary_K500 <- compute_bias_mse(
+s2.summary_K500 <- compute_error_metrics(
   results = s2.res_K500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -795,6 +801,7 @@ s2.summary_K500 <- compute_bias_mse(
 )
 
 s2.summary_K500
+
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s2.res_K500)
@@ -851,11 +858,11 @@ print(ci_table)
 
 ```{r Scenario 2 K1000}
 
-set.seed(1855)
+set.seed(315)
 
 s2.res_K1000 <- run_em_simulations(K = 1000, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s2.summary_K1000 <- compute_bias_mse(
+s2.summary_K1000 <- compute_error_metrics(
   results = s2.res_K1000,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -863,6 +870,7 @@ s2.summary_K1000 <- compute_bias_mse(
 )
 
 s2.summary_K1000
+
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s2.res_K1000)
@@ -920,11 +928,11 @@ print(ci_table)
 
 ```{r Scenario 2 K1500}
 
-set.seed(1855)
+set.seed(315)
 
 s2.res_K1500 <- run_em_simulations(K = 1500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s2.summary_K1500 <- compute_bias_mse(
+s2.summary_K1500 <- compute_error_metrics(
   results = s2.res_K1500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1010,7 +1018,7 @@ tau2_g <- c(1.5^2, 1.2^2)
 
 s3.res_K150 <- run_em_simulations(K = 150, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s3.summary_K150 <- compute_bias_mse(
+s3.summary_K150 <- compute_error_metrics(
   results = s3.res_K150,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1018,6 +1026,8 @@ s3.summary_K150 <- compute_bias_mse(
 )
 
 s3.summary_K150
+
+
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s3.res_K150)
@@ -1077,7 +1087,7 @@ set.seed(315)
 
 s3.res_K500 <- run_em_simulations(K = 500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s3.summary_K500 <- compute_bias_mse(
+s3.summary_K500 <- compute_error_metrics(
   results = s3.res_K500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1085,6 +1095,7 @@ s3.summary_K500 <- compute_bias_mse(
 )
 
 s3.summary_K500
+ 
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s3.res_K500)
@@ -1143,7 +1154,7 @@ set.seed(315)
 
 s3.res_K1000 <- run_em_simulations(K = 1000, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s3.summary_K1000 <- compute_bias_mse(
+s3.summary_K1000 <- compute_error_metrics(
   results = s3.res_K1000,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1151,6 +1162,8 @@ s3.summary_K1000 <- compute_bias_mse(
 )
 
 s3.summary_K1000
+
+ 
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s3.res_K1000)
@@ -1210,7 +1223,7 @@ set.seed(315)
 
 s3.res_K1500 <- run_em_simulations(K = 1500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s3.summary_K1500 <- compute_bias_mse(
+s3.summary_K1500 <- compute_error_metrics(
   results = s3.res_K1500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1218,6 +1231,9 @@ s3.summary_K1500 <- compute_bias_mse(
 )
 
 s3.summary_K1500
+
+ 
+
 
 # Scenario 3
 plot_mixture_fit(
@@ -1295,7 +1311,7 @@ tau2_g <- c(0.8^2)
 
 s4.res_K150 <- run_em_simulations(K = 150, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s4.summary_K150 <- compute_bias_mse(
+s4.summary_K150 <- compute_error_metrics(
   results = s4.res_K150,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1303,6 +1319,7 @@ s4.summary_K150 <- compute_bias_mse(
 )
 
 s4.summary_K150
+ 
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s4.res_K150)
@@ -1362,7 +1379,7 @@ set.seed(315)
 
 s4.res_K500 <- run_em_simulations(K = 500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s4.summary_K500 <- compute_bias_mse(
+s4.summary_K500 <- compute_error_metrics(
   results = s4.res_K500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1370,6 +1387,9 @@ s4.summary_K500 <- compute_bias_mse(
 )
 
 s4.summary_K500
+
+ 
+
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s4.res_K500)
@@ -1428,7 +1448,7 @@ set.seed(315)
 
 s4.res_K1000 <- run_em_simulations(K = 1000, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s4.summary_K1000 <- compute_bias_mse(
+s4.summary_K1000 <- compute_error_metrics(
   results = s4.res_K1000,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1436,6 +1456,8 @@ s4.summary_K1000 <- compute_bias_mse(
 )
 
 s4.summary_K1000
+
+ 
 
 # Plot CIs and parametric distribution of parameters
 df <- as.data.frame(s4.res_K1000)
@@ -1495,7 +1517,7 @@ set.seed(315)
 
 s4.res_K1500 <- run_em_simulations(K = 1500, pi_g = pi_g, mu_g = mu_g, tau2_g = tau2_g)
 
-s4.summary_K1500 <- compute_bias_mse(
+s4.summary_K1500 <- compute_error_metrics(
   results = s4.res_K1500,
   mu_true = mu_g,
   tau2_true = tau2_g,
@@ -1503,6 +1525,7 @@ s4.summary_K1500 <- compute_bias_mse(
 )
 
 s4.summary_K1500
+
 
 # Scenario 4
 plot_mixture_fit(

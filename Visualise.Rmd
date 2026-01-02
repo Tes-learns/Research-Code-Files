@@ -72,13 +72,6 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   if(it == run_count[2]){
@@ -88,13 +81,6 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   if(it == run_count[3]){
@@ -105,13 +91,6 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   
@@ -124,7 +103,7 @@ for(it in 1: 500){
 ### Scenario 2
 
 ```{r s2-Y plot}
-set.seed(1855)
+set.seed(315)
 
 # Scenario: 2-component mixture - unequal heterogeneity
 pi_g <- c(0.56, 0.44)
@@ -145,12 +124,6 @@ for(it in 1: 500){
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
     
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   if(it == run_count[2]){
@@ -160,13 +133,7 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
+
   }
   
   if(it == run_count[3]){
@@ -178,12 +145,6 @@ for(it in 1: 500){
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
     
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   
@@ -215,13 +176,7 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
+
   }
   
   if(it == run_count[2]){
@@ -231,13 +186,7 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
+
   }
   
   if(it == run_count[3]){
@@ -248,13 +197,6 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   
@@ -286,12 +228,6 @@ for(it in 1: 500){
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
     
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
   }
   
   if(it == run_count[2]){
@@ -301,13 +237,7 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
+
   }
   
   if(it == run_count[3]){
@@ -318,13 +248,7 @@ for(it in 1: 500){
     hist(freq = FALSE, dat1$Y, main= "", xlab= "Y", ylab = "density",
          
          ylim = c(0, dnorm(mu, mu, sigma) * 1.1))
-    
-    
-    curve(dnorm(x, mean = mu, sd = sigma),
-      add = TRUE,          # Add to the existing plot
-      col = "red",         # Color of the curve
-      lwd = 2,             # Line width
-      lty = 2)             # Line type (e.g., dashed)
+
   }
   
   

@@ -16,6 +16,37 @@ library(tidyr)
 ```
 
 
+```{r plot function, echo=FALSE}
+
+plot_rel_rmse <- function(rel_rmse_df, scenario_label = "") {
+  
+  df_long <- rel_rmse_df %>%
+    pivot_longer(
+      cols = starts_with("K"),
+      names_to = "K",
+      values_to = "Relative_RMSE"
+    ) %>%
+    mutate(
+      K = as.numeric(gsub("K", "", K)),
+      Parameter = factor(Parameter)
+    )
+  
+  ggplot(df_long, aes(x = K, y = Relative_RMSE, 
+                      color = Parameter, group = Parameter)) +
+    geom_line(linewidth = 1) +
+    geom_point(size = 2) +
+    theme_minimal(base_size = 13) +
+    labs(
+      x = "Number of Studies (K)",
+      y = "Relative RMSE",
+      color = "Parameter"
+    ) +
+    scale_x_continuous(breaks = c(150, 500, 1000, 1500))
+}
+
+```
+
+
 ## Scenario 1
 
 ```{r s1}
@@ -38,6 +69,31 @@ theme_minimal(base_size = 13) +
 labs(x = "Number of Studies (K)", y = "RMSE", color = "Parameter") +
 scale_x_continuous(breaks = c(150, 500, 1000, 1500))
 
+#NRMSE
+
+scenario3_rel_rmse <- data.frame(
+  Parameter = c("mu1", "mu2", "mu3",
+                "tau21", "tau22", "tau23",
+                "pi1", "pi2", "pi3"),
+  
+  K150  = c(0.26816191, 0.77184890, 0.09966787,
+            1.07888064, 1.39343847, 0.79774490,
+            0.71579620, 0.30376379, 0.17226828),
+  
+  K500  = c(0.19474595, 0.40921551, 0.05550967,
+            0.84922504, 1.21707930, 0.52984870,
+            0.57731875, 0.27481830, 0.09746346),
+  
+  K1000 = c(0.16539782, 0.30079057, 0.04421604,
+            0.72136445, 1.05665610, 0.40920887,
+            0.53251324, 0.26369589, 0.07819221),
+  
+  K1500 = c(0.15434832, 0.27598255, 0.03504945,
+            0.61656813, 0.82217481, 0.32929817,
+            0.52067353, 0.26088684, 0.06172503)
+)
+
+plot_rel_rmse(scenario3_rel_rmse)
 
 ```
 
@@ -63,11 +119,37 @@ theme_minimal(base_size = 13) +
 labs(x = "Number of Studies (K)", y = "RMSE", color = "Parameter") +
 scale_x_continuous(breaks = c(150, 500, 1000, 1500))
 
+#rRMSE
+
+scenario2_rel_rmse <- data.frame(
+  Parameter = c("mu1", "mu2", "tau21", "tau22", "pi1", "pi2"),
+  
+  K150  = c(1.0043800, 0.3355229,
+            0.9165056, 1.5819529,
+            0.3218622, 0.4096428),
+  
+  K500  = c(0.6189470, 0.2481727,
+            0.6487679, 1.1750398,
+            0.2608993, 0.3320537),
+  
+  K1000 = c(0.5143219, 0.2164877,
+            0.5299292, 0.9744987,
+            0.2327954, 0.2962851),
+  
+  K1500 = c(0.3902492, 0.1807697,
+            0.4283790, 0.8199859,
+            0.1881360, 0.2394458)
+)
+
+plot_rel_rmse(scenario2_rel_rmse)
+
 ```
 
 ## Scenario 3
 
 ```{r s3}
+
+#RMSE
 scenario3 <- data.frame(
 Parameter = c("mu1", "mu2", "tau2_1", "tau2_2", "pi1", "pi2"),
 K150  = c(1.3348927, 0.6246681, 1.4091233, 0.7413643, 0.2289934, 0.2289934),
@@ -86,6 +168,31 @@ theme_minimal(base_size = 13) +
 labs(x = "Number of Studies (K)", y = "RMSE", color = "Parameter") +
 scale_x_continuous(breaks = c(150, 500, 1000, 1500))
 
+#NRMSE
+
+scenario4_rel_rmse <- data.frame(
+  Parameter = c("mu1", "mu2",
+                "tau21", "tau22",
+                "pi1", "pi2"),
+  
+  K150  = c(1.3348927, 0.6246681,
+            0.6262770, 0.5148363,
+            0.6939193, 0.3417811),
+  
+  K500  = c(0.7283115, 0.2978475,
+            0.4176995, 0.3051701,
+            0.4890773, 0.2408888),
+  
+  K1000 = c(0.4530323, 0.1903813,
+            0.2715212, 0.1878845,
+            0.3277450, 0.1614266),
+  
+  K1500 = c(0.3947530, 0.1430142,
+            0.2305595, 0.1436453,
+            0.2853917, 0.1405660)
+)
+
+plot_rel_rmse(scenario4_rel_rmse)
 
 ```
 
@@ -109,6 +216,19 @@ geom_line(linewidth = 1) + geom_point(size = 2) +
 theme_minimal(base_size = 13) +
 labs(x = "Number of Studies (K)", y = "RMSE", color = "Parameter") +
 scale_x_continuous(breaks = c(150, 500, 1000, 1500))
+
+#NRMSE
+
+scenario1_rel_rmse <- data.frame(
+  Parameter = c("mu1", "tau21"),
+  
+  K150  = c(0.1998494, 0.2310201),
+  K500  = c(0.09945721, 0.13245640),
+  K1000 = c(0.07138080, 0.09026928),
+  K1500 = c(0.06068287, 0.07312488)
+)
+
+plot_rel_rmse(scenario1_rel_rmse)
 
 ```
 
