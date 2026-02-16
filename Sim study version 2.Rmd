@@ -1,0 +1,815 @@
+---
+title: "Sim update"
+author: "Tes"
+date: "2025-10-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+```{r Packages}
+library(metafor)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+
+# All Functions throughout the code
+
+### -------------------------------
+### Function: generate_mrem_data()
+### -------------------------------
+### Generates one simulated meta-analysis dataset with non-normality present in 
+### study-specific true effect sizes
+
+```{r Function 1}
+
+generate_mrem_data <- function(K, G, pi_g, mu_g, tau2_g,
+                               s2_min = 0.5, s2_max = 1) {
+  
+  # ---- Check Inputs ----
+  if (length(pi_g) != G || length(mu_g) != G || length(tau2_g) != G) {
+    stop("Lengths of pi_g, mu_g, and tau2_g must all equal G.")
+  }
+  
+  if (abs(sum(pi_g) - 1) > 1e-6) {
+    stop("Mixing proportions pi_g must sum to 1.")
+  }
+  
+  # ---- Step 1: Generate component membership z_i ----
+  z_i <- sample(seq_len(G), size = K, replace = TRUE, prob = pi_g)
+  
+  # ---- Step 2: Generate true effect sizes δ*_i ----
+  delta_i <- sapply(z_i, function(g) {
+    rnorm(1, mean = mu_g[g], sd = sqrt(tau2_g[g]))
+  })
+  
+  # ---- Step 3: Generate within-study variances s_i² ----
+  s2_i <- runif(K, min = s2_min, max = s2_max)
+  
+  # ---- Step 4: Generate observed effect sizes Y_i ----
+  Y_i <- rnorm(K, mean = delta_i, sd = sqrt(s2_i))
+  
+  # ---- Step 5: Return dataset ----
+  data.frame(
+    study = seq_len(K),
+    component = z_i,
+    delta_true = delta_i,
+    s2 = s2_i,
+    Y = Y_i
+  )
+}
+
+
+```
+
+### -------------------------------
+### Function: initialize_params()
+### -------------------------------
+### Generates initial values for each parameter (used in EM algorithm)
+
+```{r Function 2}
+# Y: observed effect sizes
+# s2: vector of within-study variances
+# G: number of components (clusters)
+# epsilon: small positive constant
+
+initialize_params <- function(Y, s2, G, epsilon = 1e-3) {
+  # Step 1: Run k-means clustering
+  km <- kmeans(Y, centers = G, nstart = 20)
+  
+  # Step 2: Component means (ensure numeric vector)
+  mu_init <- as.numeric(km$centers)
+  
+  # Step 3: Cluster assignments
+  z_init <- km$cluster
+  
+  # Step 4: Mixing proportions (ensure numeric vector)
+  pi_init <- as.numeric(table(z_init) / length(Y))
+  
+  # Step 5: Between-study variances (ensure numeric vector)
+  tau2_init <- numeric(G)
+  for (g in 1:G) {
+    Y_g <- Y[z_init == g]
+    s2_g <- s2[z_init == g]
+    var_Yg <- var(Y_g)
+    tau2_init[g] <- max(var_Yg - mean(s2_g), epsilon)
+  }
+  
+  # Step 6: Return as clean numeric list
+  list(
+    mu_init = mu_init,
+    tau2_init = tau2_init,
+    pi_init = pi_init
+  )
+}
+
+```
+
+### -------------------------------
+### Function: update_tau2()
+### -------------------------------
+### Function to numerically update between study variance parameter estimate
+### (used in EM algorithm)
+
+```{r Funtion 3}
+
+update_tau2 <- function(Y, s2, gam, mu, tau2_init,
+                        epsilon = 1e-8,
+                        min_weight = 1e-6) {
+  
+  neg_loglik_tau2_g <- function(tau2_g, Y, s2, gam_g, mu_g) {
+    if (tau2_g <= 0) return(1e20)
+    
+    v <- tau2_g + s2
+    w <- gam_g / sum(gam_g)  # normalised weights
+    
+    -sum(w * (-0.5 * log(v) - 0.5 * (Y - mu_g)^2 / v))
+  }
+  
+  sapply(seq_along(mu), function(g) {
+    
+    # Effective component size
+    w_g <- sum(gam[, g])
+    
+    # If component is effectively empty, keep previous value
+    if (w_g < min_weight) {
+      return(tau2_init[g])
+    }
+    
+    optim(
+      par = tau2_init[g],
+      fn = neg_loglik_tau2_g,
+      method = "L-BFGS-B",
+      lower = epsilon,
+      Y = Y,
+      s2 = s2,
+      gam_g = gam[, g],
+      mu_g = mu[g]
+    )$par
+  })
+}
+
+
+```
+
+### -------------------------------
+### Function: run_em_algorithm()
+### -------------------------------
+### procedure to get EM-estimated mixture parameters
+
+
+```{r function 4}
+run_em_algorithm <- function(Y, s2, mu_init, pi_init, tau2_init, tol = 1e-3, rl = 500) {
+  y <- as.vector(Y)
+  s2_i <- as.vector(s2)
+  mu <- mu_init
+  pi <- pi_init
+  tau2 <- tau2_init
+  g <- length(mu)
+  
+  loglik_old <- -Inf
+  
+  for (iter in 1:rl) {
+    # E-step
+    den_gam <- sapply(1:g, function(j) {
+      pi[j] * dnorm(y, mu[j], sqrt(tau2[j] + s2_i))
+    })
+    row_sum <- rowSums(den_gam)
+    row_sum[row_sum == 0] <- .Machine$double.eps
+    gam <- den_gam / row_sum
+
+    
+    # M-step
+    ng <- colSums(gam)
+    npi <- ng / sum(ng)
+    
+    nmu <- sapply(1:g, function(j) {
+      sum(gam[, j] * y / (tau2[j] + s2_i)) /
+        sum(gam[, j] / (tau2[j] + s2_i))
+    })
+    
+    ntau2 <- update_tau2(y, s2_i, gam, nmu, tau2)
+    
+    # Enforce ordering by component mean
+    order_idx <- order(nmu)
+    nmu <- nmu[order_idx]
+    ntau2 <- ntau2[order_idx]
+    npi <- npi[order_idx]
+    
+    # Compute log-likelihood
+    dens <- rowSums(sapply(1:g, function(j) {
+      npi[j] * dnorm(y, mean = nmu[j], sd = sqrt(ntau2[j] + s2_i))
+    }))
+    
+    dens[dens == 0] <- .Machine$double.eps
+    loglik <- sum(log(dens))
+
+    
+    # Convergence check
+    if (abs(loglik - loglik_old) < tol && iter > 10) {
+      return(list(
+        mu = nmu,
+        tau2 = ntau2,
+        pi = npi,
+        loglik = loglik,
+        iter = iter,
+        converged = TRUE
+      ))
+    }
+    
+    mu <- nmu
+    tau2 <- ntau2
+    pi <- npi
+    loglik_old <- loglik
+  }
+  
+  # Return final results even if not converged
+  list(
+    mu = mu,
+    tau2 = tau2,
+    pi = pi,
+    loglik = loglik,
+    iter = rl,
+    converged = FALSE
+  )
+}
+
+
+```
+
+
+### -------------------------------
+### Function: compute_fmm_blup_rmse()
+### -------------------------------
+### Uses EM-estimated mixture parameters to compute
+### study-specific finite mixture BLUP predictions.
+### Calculates RMSE and rRMSE by comparing predicted
+### and true study-specific random effects.
+
+```{r Function 5}
+compute_fmm_blup_rmse <- function(sim_data, em_res) {
+  
+  y  <- sim_data$Y
+  v  <- sim_data$s2
+  delta_true <- sim_data$delta_true
+  
+  mu    <- em_res$mu
+  tau2  <- em_res$tau2
+  pi_g  <- em_res$pi
+  
+  G <- length(mu)
+  
+  # ---- Step 1: Compute posterior probabilities gamma_ig ----
+  
+  dens_mat <- sapply(1:G, function(g) {
+    pi_g[g] * dnorm(y, mean = mu[g], sd = sqrt(tau2[g] + v))
+  })
+  
+  row_sum <- rowSums(dens_mat)
+  row_sum[row_sum == 0] <- .Machine$double.eps
+  gamma <- dens_mat / row_sum
+
+  
+  # ---- Step 2: Component-specific BLUPs ----
+  
+  delta_ig <- sapply(1:G, function(g) {
+    (v * mu[g] + tau2[g] * y) / (v + tau2[g])
+  })
+  
+  # ---- Step 3: Finite mixture BLUP ----
+  
+  delta_hat <- rowSums(gamma * delta_ig)
+  
+  # ---- Step 4: RMSE and rRMSE ----
+  
+  rmse  <- sqrt(mean((delta_hat - delta_true)^2))
+  rrmse <- rmse / sqrt(mean(delta_true^2))
+  
+  list(
+    delta_hat = delta_hat,
+    rmse = rmse,
+    rrmse = rrmse
+  )
+}
+
+
+```
+
+### -------------------------------
+### Function: run_full_comparison()
+### -------------------------------
+### Conducts a Monte Carlo simulation study across multiple scenarios and study sizes.
+### For each scenario and value of K, it generates a dataset, fits both the
+### finite mixture random-effects model (MREM) and the traditional random-effects
+### model (REM) to the same data, computes AIC and BIC, RMSE  
+### and estimated parameter bias for each model,
+### and returns a combined data frame for performance comparison.
+
+```{r Function 6}
+run_full_comparison <- function(scenarios, K_values,
+                                n_sim = 500,
+                                seed = 315,
+                                tol = 1e-3,
+                                rl = 500) {
+  
+  set.seed(seed)
+  
+  all_results <- list()
+  counter <- 1
+  
+  for (sc in scenarios) {
+    
+    G <- sc$G
+    
+    for (K in K_values) {
+      
+      sim_results <- vector("list", n_sim)
+      
+      for (sim in 1:n_sim) {
+        
+        sim_data <- generate_mrem_data(
+          K = K,
+          G = G,
+          pi_g = sc$pi_g,
+          mu_g = sc$mu_g,
+          tau2_g = sc$tau2_g
+        )
+        
+        y  <- sim_data$Y
+        v  <- sim_data$s2
+        delta_true <- sim_data$delta_true
+        
+        # ================= MREM =================
+        
+        init <- initialize_params(y, v, G = G)
+        
+        em_res <- run_em_algorithm(
+          Y = y,
+          s2 = v,
+          mu_init = init$mu_init,
+          pi_init = init$pi_init,
+          tau2_init = init$tau2_init,
+          tol = tol,
+          rl = rl
+        )
+        
+        if (em_res$converged) {
+          
+          em_perf <- compute_fmm_blup_rmse(sim_data, em_res)
+          em_rmse <- em_perf$rmse
+          
+          loglik_mrem <- em_res$loglik
+          p_mrem <- 3*G - 1
+          
+          aic_mrem <- -2*loglik_mrem + 2*p_mrem
+          bic_mrem <- -2*loglik_mrem + p_mrem*log(K)
+          
+          mu_bias  <- mean(abs(em_res$mu - sc$mu_g))
+          tau_bias <- mean(abs(em_res$tau2 - sc$tau2_g))
+          
+        } else {
+          
+          em_rmse <- NA
+          aic_mrem <- NA
+          bic_mrem <- NA
+          mu_bias <- NA
+          tau_bias <- NA
+        }
+        
+        # ================= REM =================
+        
+        rem_fit <- rma(yi = y, vi = v, method = "ML")
+        
+        rem_blup <- blup(rem_fit)
+        rem_delta_hat <- rem_blup$pred
+        
+        rem_rmse <- sqrt(mean((rem_delta_hat - delta_true)^2))
+        
+        aic_rem <- AIC(rem_fit)
+        bic_rem <- BIC(rem_fit)
+
+        
+        # ================= Store =================
+        
+        sim_results[[sim]] <- data.frame(
+          scenario = paste0("Scenario ", sc$paper_id),
+          K = K,
+          sim = sim,
+          rmse_mrem = em_rmse,
+          rmse_rem  = rem_rmse,
+          aic_mrem = aic_mrem,
+          aic_rem  = aic_rem,
+          bic_mrem = bic_mrem,
+          bic_rem  = bic_rem,
+          mu_bias = mu_bias,
+          tau_bias = tau_bias,
+          converged = em_res$converged
+        )
+      }
+      
+      all_results[[counter]] <- do.call(rbind, sim_results)
+      counter <- counter + 1
+      
+      cat("Completed Scenario", sc$paper_id, "with K =", K, "\n")
+    }
+  }
+  
+  final_df <- do.call(rbind, all_results)
+  
+  final_df$scenario <- factor(
+    final_df$scenario,
+    levels = paste0("Scenario ", 1:length(scenarios))
+  )
+  
+  return(final_df)
+}
+
+```
+
+### ------------------------------
+### Function: compare_rmse_plot()
+### ------------------------------
+
+```{r Function 8}
+
+plot_rmse_comparison <- function(summary_df) {
+  
+  ggplot(summary_df,
+         aes(x = factor(K),
+             y = mean_rmse,
+             fill = model)) +
+    
+    geom_bar(stat = "identity",
+             position = position_dodge(width = 0.7),
+             width = 0.6) +
+    
+    facet_wrap(~ scenario, ncol = 2) +
+    
+    scale_fill_manual(values = c(
+      "MREM" = "#1f78b4",
+      "REM"  = "#e31a1c"
+    )) +
+    
+    labs(
+      x = "Number of Studies (K)",
+      y = "Mean RMSE",
+      fill = "Model"
+    ) +
+    
+    theme_bw() +
+    theme(
+      strip.text = element_text(face = "bold"),
+      panel.grid.major = element_line(linetype = "dashed"),
+      panel.grid.minor = element_blank()
+    )
+}
+
+
+```
+
+### ------------------------------
+### Function: get_rmse_summary()
+### ------------------------------
+
+```{r Function 9}
+get_rmse_summary <- function(df) {
+  
+  df %>%
+    pivot_longer(cols = c(rmse_mrem, rmse_rem),
+                 names_to = "model",
+                 values_to = "rmse") %>%
+    mutate(model = ifelse(model == "rmse_mrem", "MREM", "REM")) %>%
+    group_by(scenario, K, model) %>%
+    summarise(
+      mean_rmse = mean(rmse, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+```
+
+### ------------------------------
+### Function: get_convergence_summary()
+### ------------------------------
+
+```{r Function 10}
+get_convergence_summary <- function(results_df) {
+  
+  results_df %>%
+    group_by(scenario, K) %>%
+    summarise(
+      convergence_rate = mean(converged, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+
+```
+
+
+### ------------------------------
+### Function: get_AIC_BIC_summary()
+### ------------------------------
+
+```{r Function 11}
+get_AIC_BIC_summary <- function(df) {
+  df %>%
+    group_by(scenario, K) %>%
+    summarise(
+      mean_aic_mrem = mean(aic_mrem, na.rm = TRUE),
+      mean_aic_rem  = mean(aic_rem,  na.rm = TRUE),
+      mean_bic_mrem = mean(bic_mrem, na.rm = TRUE),
+      mean_bic_rem  = mean(bic_rem,  na.rm = TRUE),
+      prop_mrem_better_bic = mean(bic_mrem < bic_rem, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+```
+
+### ------------------------------
+### Function: get_bias_summary()
+### ------------------------------
+
+```{r Function 12}
+
+get_bias_summary <- function(df) {
+  df %>%
+    group_by(scenario, K) %>%
+    summarise(
+      mean_mu_bias  = mean(mu_bias,  na.rm = TRUE),
+      mean_tau_bias = mean(tau_bias, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+
+```
+
+
+### ------------------------------
+### Function: plot_bias_summary()
+### ------------------------------
+
+```{r Function 13}
+plot_bias_summary <- function(bias_df) {
+  
+  bias_long <- bias_df %>%
+    pivot_longer(cols = c(mean_mu_bias, mean_tau_bias),
+                 names_to = "parameter",
+                 values_to = "bias")
+  
+  ggplot(bias_long,
+         aes(x = factor(K),
+             y = bias,
+             group = scenario,
+             color = scenario)) +
+    geom_line() +
+    geom_point(size = 2) +
+    facet_wrap(~ parameter, scales = "free_y",
+               labeller = labeller(parameter = c(
+                 mean_mu_bias  = "Mean",
+                 mean_tau_bias = "Between-study variance"
+               ))) +
+    labs(x = "Number of Studies (K)",
+         y = "Mean Absolute Bias Across Mixture Components",
+         color = "Scenario") +
+    theme_bw()
+}
+
+```
+
+### ------------------------------
+### Function: plot_IC()
+### ------------------------------
+
+```{r Function 14}
+plot_IC <- function(summary_df) {
+  
+  ic_long <- summary_df %>%
+    pivot_longer(cols = c(mean_aic_mrem, mean_aic_rem,
+                          mean_bic_mrem, mean_bic_rem),
+                 names_to = "metric",
+                 values_to = "value") %>%
+    mutate(
+      criterion = ifelse(grepl("aic", metric), "AIC", "BIC"),
+      model = ifelse(grepl("mrem", metric), "MREM", "REM")
+    )
+  
+  ggplot(ic_long,
+         aes(x = factor(K),
+             y = value,
+             fill = model)) +
+    geom_bar(stat = "identity",
+             position = position_dodge(width = 0.7),
+             width = 0.6) +
+    facet_grid(criterion ~ scenario, scales = "free_y") +
+    labs(x = "Number of Studies (K)",
+         y = "Mean Information Criterion",
+         fill = "Model") +
+    theme_bw() +
+    theme(
+      strip.text = element_text(face = "bold")
+    )
+}
+
+
+```
+
+### ------------------------------
+### Function: plot_selection_rate()
+### ------------------------------
+
+```{r Function 15}
+plot_selection_rate <- function(summary_df) {
+  
+  ggplot(summary_df,
+         aes(x = factor(K),
+             y = prop_mrem_better_bic,
+             group = scenario,
+             color = scenario)) +
+    geom_line() +
+    geom_point(size = 2) +
+    labs(x = "Number of Studies (K)",
+         y = "Proportion BIC Prefers MREM",
+         color = "Scenario") +
+    theme_bw()
+}
+
+
+```
+
+### ------------------------------
+### Function: model_density()
+### ------------------------------
+
+```{r Function 16}
+
+model_density <- function(x, pi_g, mu_g, tau2_g) {
+  rowSums(sapply(1:length(pi_g), function(g) {
+    pi_g[g] * dnorm(x, mu_g[g], sqrt(tau2_g[g]))
+  }))
+}
+
+```
+
+### ------------------------------
+### Function: plot_identified_density()
+### ------------------------------
+
+```{r Function 17}
+
+plot_identified_density <- function(sc, K = 200) {
+  
+  set.seed(123)
+  
+  dat <- generate_mrem_data(
+    K = K,
+    G = sc$G,
+    pi_g = sc$pi_g,
+    mu_g = sc$mu_g,
+    tau2_g = sc$tau2_g
+  )
+  
+  y <- dat$Y
+  v <- dat$s2
+  
+  # Fit MREM
+  init <- initialize_params(y, v, G = sc$G)
+  em_res <- run_em_algorithm(y, v,
+                             init$mu_init,
+                             init$pi_init,
+                             init$tau2_init)
+  
+  # Fit REM
+  rem_fit <- rma(yi = y, vi = v, method = "DL")
+  
+  xgrid <- seq(min(dat$delta_true) - 2,
+               max(dat$delta_true) + 2,
+               length.out = 500)
+  
+  true_dens <- model_density(xgrid,
+                                     sc$pi_g,
+                                     sc$mu_g,
+                                     sc$tau2_g)
+  
+  mrem_dens <- model_density(xgrid,
+                                     em_res$pi,
+                                     em_res$mu,
+                                     em_res$tau2)
+  
+  rem_dens <- dnorm(xgrid,
+                    mean = as.numeric(rem_fit$b),
+                    sd = sqrt(rem_fit$tau2))
+  
+  df_plot <- rbind(
+    data.frame(x = xgrid,
+               density = true_dens,
+               type = "True"),
+    data.frame(x = xgrid,
+               density = mrem_dens,
+               type = "MREM"),
+    data.frame(x = xgrid,
+               density = rem_dens,
+               type = "REM")
+  )
+  
+  ggplot(df_plot,
+         aes(x = x,
+             y = density,
+             color = type)) +
+    geom_line(size = 1) +
+    facet_wrap(~ type, scales = "free_y") +
+    theme_bw() +
+    labs(x = expression(delta),
+         y = "Density")
+}
+
+```
+
+
+
+
+# Scenarios
+
+```{r scenarios}
+scenarios <- list(
+  
+  list(
+    paper_id = 1,
+    G = 1,
+    pi_g  = c(1),
+    mu_g  = c(0.5),
+    tau2_g = c(0.8^2)
+  ),
+  
+  list(
+    paper_id = 2,
+    G = 2,
+    pi_g  = c(0.56, 0.44),
+    mu_g  = c(-2.5, 1),
+    tau2_g = c(0.6^2, 0.8^2)
+  ),
+  
+  list(
+    paper_id = 3,
+    G = 3,
+    pi_g  = c(0.2, 0.4, 0.4),
+    mu_g  = c(-2.5, -1, 2.5),
+    tau2_g = c(0.7^2, 0.7^2, 0.6^2)
+  ),
+  
+  list(
+    paper_id = 4,
+    G = 4,
+    pi_g  = c(0.2, 0.3, 0.3, 0.2),
+    mu_g  = c(-4, -2.5, 1, 3.5),
+    tau2_g = c(0.8^2, 0.8^2, 0.6^2, 0.6^2)
+  )
+)
+
+
+```
+
+# Model Comparison
+
+```{r}
+
+K_values <- c(50, 100, 150, 200)
+
+res_all <- run_full_comparison(scenarios, K_values)
+
+# RMSE
+summary_rmse <- get_rmse_summary(res_all)
+plot_rmse_comparison(summary_rmse)
+
+# Convergence
+conv_summary <- get_convergence_summary(res_all)
+conv_summary
+
+# Bias
+bias_summary <- get_bias_summary(res_all)
+plot_bias_summary(bias_summary)
+
+# AIC / BIC
+model_summary <- get_AIC_BIC_summary(res_all)
+plot_IC(model_summary)
+
+# Selection rate
+plot_selection_rate(model_summary)
+
+# Density recovery at K = 200
+for (sc in scenarios) {
+  print(plot_identified_density(sc, K = 200))
+}
+
+
+
+
+```
